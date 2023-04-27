@@ -1,0 +1,84 @@
+﻿@{
+    ViewData["Title"] = "Home Page";
+}
+<h1>SHOW ME TRASH :)</h1>
+
+<div>
+<video id="videoElement" autoplay></video>
+</div>
+
+<div>
+<h1>Prediction</h1>
+<p id="result"></p>
+</div>
+
+<script>
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(function (stream) {
+            var video = document.getElementById('videoElement');
+            video.srcObject = stream;
+        })
+        .catch(function (error) {
+            console.log('Error accessing camera:', error);
+        });
+
+    setInterval(takeSnapshotAndSend, 3000);
+
+    var connection = new signalR.HubConnectionBuilder()
+        .withUrl('/predHub')
+        .build();
+
+    connection.start().catch(function (error) {
+        console.log('Error starting SignalR connection:', error);
+    });
+
+    connection.on('ReceiveMessage', function (message) {
+        var resultElement = document.getElementById('result');
+        resultElement.innerHTML = message;
+    });
+
+    async function takeSnapshotAndSend() {
+        var video = document.getElementById('videoElement');
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        var blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+        var reader = new FileReader();
+        reader.onload = async function () {
+            var buffer = reader.result;
+            var base64 = btoa(String.fromCharCode.apply(null, new Uint8Array(buffer)));
+
+            try {
+                var result = await connection.invoke('SendImage', base64);
+                var resultElement = document.getElementById('result');
+                resultElement.innerHTML = result.PredictedLabel + " - " + Math.round(result.Percentage * 100) + "%";
+                var firstWord = result.split(" ")[0];
+                if (firstWord == "plastic" || firstWord == "metal" || firstWord == "cardboard") {
+                    document.body.style.backgroundColor = "lightblue";
+                }
+                else if (firstWord == "paper") {
+                    document.body.style.backgroundColor = "lightyellow";
+                }
+                else if (firstWord == "trash") {
+                    document.body.style.backgroundColor = "lightorange";
+                }
+                else if (firstWord == "glass") {
+                    document.body.style.backgroundColor = "lightgreen";
+                }
+                else if (firstWord == ""){
+                    document.body.style.backgroundColor = "white";
+                }
+                resultElement.innerHTML = result;
+            } catch (error) {
+                console.log('Error sending image:', error);
+            }
+        };
+        reader.readAsArrayBuffer(blob);
+
+
+    }
+
+</script>
+
