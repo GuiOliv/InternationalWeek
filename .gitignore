@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Garbage classification/Garbage classification
+/Model
+/MLModel1_ConsoleApp2
+/MLModel1_ConsoleApp1
+/InternationalWeek-ConsoleApp
